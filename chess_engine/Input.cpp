@@ -1,99 +1,89 @@
 #include "Input.hpp"
-#include <cctype>
-#include <iostream>
-#include <limits>
-#include <tuple>
 
 namespace chess_input {
 
-std::tuple<chess_board::GameType, chess_board::OpponentType, chess_board::Color,
-           int>
-gatherInputs() {
+chess_board::GameParams gatherInputs() {
   using namespace chess_board;
 
-  const GameType gameType = getGameType();
-  const OpponentType opponentType = getOpponent();
-  const Color playerColor =
-      opponentType == OpponentType::ENGINE ? getPlayerColor() : Color::WHITE;
-  const int depth = opponentType == OpponentType::ENGINE ? getEngineDepth() : 0;
-
-  std::cout << "\n";
-
-  return std::make_tuple(gameType, opponentType, playerColor, depth);
-}
-
-chess_board::GameType getGameType() {
-  char gameType;
-  while (true) {
-    std::cout << "Play [c]hess or c[h]ess960? ";
-    if (std::cin >> gameType) {
-      gameType = toupper(gameType);
-      if (gameType == 'C' || gameType == 'H') {
-        break;
-      }
-    }
-    std::cout << "Invalid input. Please enter 'c' or 'h'.\n";
-    std::cin.clear();
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-  }
-  return gameType == 'C' ? chess_board::GameType::CHESS
-                         : chess_board::GameType::CHESS960;
-}
-
-chess_board::OpponentType getOpponent() {
-  char opponent;
-  while (true) {
-    std::cout << "Verse [p]layer or [e]ngine? ";
-    if (std::cin >> opponent) {
-      opponent = toupper(opponent);
-      if (opponent == 'P' || opponent == 'E') {
-        break;
-      }
-    }
-    std::cout << "Invalid input. Please enter 'p' or 'e'.\n";
-    std::cin.clear();
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-  }
-  return opponent == 'P' ? chess_board::OpponentType::PLAYER
-                         : chess_board::OpponentType::ENGINE;
-}
-
-chess_board::Color getPlayerColor() {
-  char playerColor;
-  while (true) {
-    std::cout << "Play as [w]hite or [b]lack? ";
-    if (std::cin >> playerColor) {
-      playerColor = toupper(playerColor);
-      if (playerColor == 'W' || playerColor == 'B') {
-        break;
-      }
-    }
-    std::cout << "Invalid input. Please enter 'w' or 'b'.\n";
-    std::cin.clear();
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-  }
-  return playerColor == 'W' ? chess_board::Color::WHITE
-                            : chess_board::Color::BLACK;
-}
-
-int getEngineDepth() {
-  constexpr int minDepth = 1;
-  constexpr int maxDepth = 5;
-
+  GameType gameType;
+  OpponentType opponentType;
+  Color playerColor;
   int depth;
+
+  std::cout << "Enter game type (0 for STANDARD, 1 for CHESS960): ";
+  int gameTypeInput;
+  std::cin >> gameTypeInput;
+  gameType = static_cast<GameType>(gameTypeInput);
+
+  std::cout << "Play against (0 for HUMAN, 1 for ENGINE): ";
+  int opponentTypeInput;
+  std::cin >> opponentTypeInput;
+  opponentType = static_cast<OpponentType>(opponentTypeInput);
+
+  if (opponentType == OpponentType::HUMAN)
+    return {gameType, opponentType, Color::WHITE, 0};
+
+  std::cout << "Play as (0 for WHITE, 1 for BLACK): ";
+  int playerColorInput;
+  std::cin >> playerColorInput;
+  playerColor = static_cast<Color>(playerColorInput);
+
+  std::cout << "Enter search depth for engine: ";
+  std::cin >> depth;
+
+  return {gameType, opponentType, playerColor, depth};
+}
+
+chess_board::Move getPlayerMove(const chess_board::Color color,
+                                const chess_moves::Moves &moves,
+                                const chess_board::Pieces &pieces) {
+  using namespace chess_board;
+
+  std::vector<Move> possibleMoves = moves.getPossibleMoves(color);
+
   while (true) {
-    std::cout << "What engine depth (int " << minDepth << "-" << maxDepth
-              << ")? ";
-    if (std::cin >> depth && depth >= minDepth && depth <= maxDepth) {
-      break;
-    } else {
-      std::cout << "Invalid input. Please enter an integer between " << minDepth
-                << " and " << maxDepth << ".\n";
-      std::cin.clear();
-      std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    std::string moveInput;
+    std::cout << "Enter your move (xyxy): ";
+    std::cin >> moveInput;
+
+    std::size_t x1 = static_cast<std::size_t>(moveInput[0] - '0');
+    std::size_t y1 = static_cast<std::size_t>(moveInput[1] - '0');
+    std::size_t x2 = static_cast<std::size_t>(moveInput[2] - '0');
+    std::size_t y2 = static_cast<std::size_t>(moveInput[3] - '0');
+
+    Move move(Cords(y1, x1), Cords(y2, x2));
+
+    std::vector<Move> chosenMoves;
+    for (const auto &possibleMove : possibleMoves) {
+      if (move.startSquare == possibleMove.startSquare &&
+          move.endSquare == possibleMove.endSquare) {
+        chosenMoves.push_back(move);
+      }
     }
+
+    const std::size_t chosenMovesSize = chosenMoves.size();
+
+    if (chosenMovesSize == 0)
+      continue;
+
+    if (chosenMovesSize > 1) {
+      std::size_t counter = 0;
+
+      for (const Move &moveOption : chosenMoves) {
+        std::cout << "Number: " << counter << " Move: ";
+        move.print();
+        counter++;
+      }
+      std::cout << "\n";
+
+      int choice;
+      std::cout << "Enter the number of your choice: ";
+      std::cin >> choice;
+      move = chosenMoves[choice];
+    }
+
+    return move;
   }
-  return depth;
 }
 
 } // namespace chess_input

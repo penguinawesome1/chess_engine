@@ -3,89 +3,66 @@
 namespace chess_board {
 
 Board::Board(const chess_moves::Moves &moves)
-    : pieces_(), moves_(moves), bestMove_{}, moveC_(2), isWhiteTurn_(true),
-      pieceLocationValues{{-.5f, -.4f, -.4f, -.4f, -.4f, -.4f, -.4f, -.5f},
-                          {-.4f, -.2f, .0f, .0f, .0f, .0f, -.2f, -.4f},
-                          {-.4f, .0f, .1f, .2f, .2f, .1f, .0f, -.4f},
-                          {-.4f, .0f, .2f, .25f, .25f, .2f, .0f, -.4f},
-                          {-.4f, .0f, .2f, .25f, .25f, .2f, .0f, -.4f},
-                          {-.4f, .0f, .1f, .2f, .2f, .1f, .0f, -.4f},
-                          {-.4f, -.2f, .0f, .0f, .0f, .0f, -.2f, -.4f},
-                          {-.5f, -.4f, -.4f, -.4f, -.4f, -.4f, -.4f, -.5f}},
-      kingLocationValues{{-.3f, -.4f, -.4f, -.5f, -.5f, -.4f, -.4f, -.3f},
-                         {-.3f, -.4f, -.4f, -.5f, -.5f, -.4f, -.4f, -.3f},
-                         {-.3f, -.4f, -.4f, -.5f, -.5f, -.4f, -.4f, -.3f},
-                         {-.3f, -.4f, -.4f, -.5f, -.5f, -.4f, -.4f, -.3f},
-                         {-.3f, -.4f, -.4f, -.5f, -.5f, -.4f, -.4f, -.3f},
-                         {-.2f, -.2f, -.2f, -.2f, -.2f, -.2f, -.2f, -.2f},
-                         {.2f, .2f, .0f, .0f, .0f, .0f, .2f, .2f},
-                         {.2f, .3f, .1f, .0f, .0f, .1f, .3f, .2f}} {
-  // initialize chessboard.
-  for (int i = 0; i < 8; ++i) {
-    for (int j = 0; j < 8; ++j) {
-      chessBoard_[i][j] = {{'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'},
-                           {'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'},
-                           {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '},
-                           {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '},
-                           {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '},
-                           {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '},
-                           {'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'},
-                           {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}};
-    }
+    : pieces_(), moves_(moves), bestMove_{}, moveC_(2), isWhiteTurn_(true) {}
+
+void Board::handleTurn(const chess_board::GameParams &inputs) {
+  const std::vector<Move> possibleMoves =
+      moves_.getPossibleMoves(inputs.playerColor);
+  Move move;
+
+  for (const auto &move : possibleMoves) {
+    move.print();
   }
+
+  if (inputs.opponentType == OpponentType::ENGINE) {
+    const bool isPlayerTurn =
+        (isWhiteTurn_ && inputs.playerColor == Color::WHITE) ||
+        (!isWhiteTurn_ && inputs.playerColor == Color::BLACK);
+
+    MinimaxParams initialParams{};
+    initialParams.depth = inputs.depth;
+    initialParams.alpha = -std::numeric_limits<float>::infinity();
+    initialParams.beta = std::numeric_limits<float>::infinity();
+    initialParams.isRootCall = true;
+
+    if (!isPlayerTurn)
+      minimax(initialParams);
+
+    move = isPlayerTurn
+               ? chess_input::getPlayerMove(inputs.playerColor, moves_, pieces_)
+               : bestMove_;
+  } else { // OpponentType::HUMAN
+    move = chess_input::getPlayerMove(inputs.playerColor, moves_, pieces_);
+  }
+
+  moves_.doMove(move);
+
+  printBoard();
+
+  isWhiteTurn_ = !isWhiteTurn_;
+  moveC_++;
 }
 
 void Board::startGame() {
-  const auto [gameType, opponentType, playerColor, depth] =
-      chess_input::gatherInputs();
+  const chess_board::GameParams inputs = chess_input::gatherInputs();
+  std::cout << "\n";
 
-  // if playing chess960, shuffle rank1 and rank8 the same way
-  if (gameType == GameType::CHESS960)
-    initializeChess960();
+  if (inputs.gameType == GameType::CHESS960)
+    initializeChess960(); // if playing chess960 shuffle the files
   arrayToBitboard();
   printBoard();
 
-  float score = 0;
+  while (!isGameOver()) {
+    handleTurn(inputs);
+  }
 
-  // if (opponentType == OpponentType::ENGINE) {
-  //   while (!gameOver()) {
-  //     const bool isPlayerTurn = (isWhiteTurn && playerColor == Color::WHITE)
-  //     ||
-  //                               (!isWhiteTurn && playerColor ==
-  //                               Color::BLACK);
-  //     if (!isPlayerTurn)
-  //       score = minimax();
-
-  //    const std::string possibleMoves;
-  //    const std::string move = PLAYER_TURN ? getPlayerMove() : bestMove;
-  //    moves.doMove();
-
-  //    printBoard();
-
-  //    isWhiteTurn = !isWhiteTurn;
-  //    moveC++;
-  //  }
-  //} else { // player opponenet
-  //  while (!evaluate1.gameOver()) {
-  //    const std::string move = getPlayerMove();
-  //    moves.doMove();
-  //    printBoard();
-
-  //    whiteTurn = !whiteTurn;
-  //    moveC++;
-  //  }
-  //}
-
-  // const bool blackChecked = pieces.blackKings & moves.otherThreats();
-  // const bool whiteChecked = pieces.whiteKings & moves.otherThreats();
-
-  // if (!isWhiteTurn && blackChecked) {
-  //   std::cout << "White wins!";
-  // } else if (isWhiteTurn && whiteChecked) {
-  //   std::cout << "Black wins!";
-  // } else {
-  //   std::cout << "It's a stalemate!";
-  // }
+  if (isCheckmate(Color::BLACK)) {
+    std::cout << "White wins!";
+  } else if (isCheckmate(Color::WHITE)) {
+    std::cout << "Black wins!";
+  } else {
+    std::cout << "It's a stalemate!";
+  }
 }
 
 void Board::initializeChess960() {
@@ -101,48 +78,22 @@ void Board::initializeChess960() {
 }
 
 void Board::arrayToBitboard() {
+  static const std::map<char, Bitboard(Pieces::*)> pieceMap = {
+      {'P', &Pieces::whitePawns},   {'N', &Pieces::whiteKnights},
+      {'B', &Pieces::whiteBishops}, {'R', &Pieces::whiteRooks},
+      {'Q', &Pieces::whiteQueens},  {'K', &Pieces::whiteKings},
+      {'p', &Pieces::blackPawns},   {'n', &Pieces::blackKnights},
+      {'b', &Pieces::blackBishops}, {'r', &Pieces::blackRooks},
+      {'q', &Pieces::blackQueens},  {'k', &Pieces::blackKings}};
+
   for (std::size_t rank = 0; rank < 8; ++rank) {
     for (std::size_t file = 0; file < 8; ++file) {
-      std::size_t index = rank * 8 + file;
-      const Bitboard mask = 1ULL << index;
-
-      switch (chessBoard_[rank][file]) {
-      case 'P':
-        pieces_.whitePawns |= mask;
-        break;
-      case 'N':
-        pieces_.whiteKnights |= mask;
-        break;
-      case 'B':
-        pieces_.whiteBishops |= mask;
-        break;
-      case 'R':
-        pieces_.whiteRooks |= mask;
-        break;
-      case 'Q':
-        pieces_.whiteQueens |= mask;
-        break;
-      case 'K':
-        pieces_.whiteKings |= mask;
-        break;
-      case 'p':
-        pieces_.blackPawns |= mask;
-        break;
-      case 'n':
-        pieces_.blackKnights |= mask;
-        break;
-      case 'b':
-        pieces_.blackBishops |= mask;
-        break;
-      case 'r':
-        pieces_.blackRooks |= mask;
-        break;
-      case 'q':
-        pieces_.blackQueens |= mask;
-        break;
-      case 'k':
-        pieces_.blackKings |= mask;
-        break;
+      char pieceChar = chessBoard_[rank][file];
+      auto it = pieceMap.find(pieceChar);
+      if (it != pieceMap.end()) {
+        std::size_t index = rank * 8 + file;
+        const Bitboard mask = 1ULL << index;
+        (pieces_.*(it->second)) |= mask;
       }
     }
   }
@@ -155,7 +106,7 @@ void Board::printBoard() const {
     std::cout << std::left << std::setw(3) << (7 - rank);
 
     for (std::size_t file = 0; file < 8; ++file) {
-      std::size_t index = rank * 8 + file;
+      const std::size_t index = rank * 8 + file;
       const Bitboard mask = 1ULL << index;
 
       if (pieces_.whitePawns & mask) {
@@ -197,122 +148,112 @@ void Board::printBoard() const {
   std::cout << "\n   0 1 2 3 4 5 6 7\n" << std::endl;
 }
 
-float Board::minimax(const int depth, float alpha, float beta,
-                     const bool isRootCall) {
-
-  if (depth == 0 || isGameOver())
-    return evaluate(depth);
+float Board::minimax(const MinimaxParams &params) {
+  if (params.depth == 0 || isGameOver())
+    return evaluate(params.depth);
 
   if (isWhiteTurn_) {
-    const std::vector<MoveCords> moves = moves_.possibleMovesWhite();
+    const std::vector<Move> moves = moves_.getPossibleMoves(Color::WHITE);
     float maxScore = std::numeric_limits<float>::lowest();
-    for (const MoveCords &move : moves) {
+
+    for (const Move &move : moves) {
       moves_.doMove(move);
 
-      const bool whiteChecked =
-          pieces_.whiteKings & moves_.areOtherThreats(false);
-      if (whiteChecked) {
+      if (isChecked(Color::WHITE)) {
         moves_.undoMove();
         continue;
       }
 
-      const float score = minimax(depth - 1, alpha, beta, false);
+      MinimaxParams nextParams = params;
+      nextParams.depth--;
+      nextParams.isRootCall = false;
+      const float score = minimax(nextParams);
       moves_.undoMove();
 
-      if (isRootCall && score > maxScore) {
+      if (params.isRootCall && score > maxScore)
         bestMove_ = move;
-      }
       maxScore = std::max(score, maxScore);
-      alpha = std::max(alpha, maxScore);
-      if (beta <= alpha) {
+      nextParams.alpha = std::max(params.alpha, maxScore);
+      if (nextParams.beta <= nextParams.alpha)
         return maxScore;
-      }
     }
     return maxScore;
   } else {
-    const std::vector<MoveCords> moves = moves_.possibleMovesBlack();
+    const std::vector<Move> moves = moves_.getPossibleMoves(Color::BLACK);
     float minScore = std::numeric_limits<float>::max();
-    for (const MoveCords &move : moves) {
+
+    for (const Move &move : moves) {
       moves_.doMove(move);
 
-      const bool BLACK_CHECKED =
-          pieces_.blackKings & moves_.areOtherThreats(true);
-      if (BLACK_CHECKED) {
+      if (isChecked(Color::BLACK)) {
         moves_.undoMove();
         continue;
       }
 
-      const float score = minimax(depth - 1, alpha, beta, false);
+      MinimaxParams nextParams = params;
+      nextParams.depth--;
+      nextParams.isRootCall = false;
+      const float score = minimax(nextParams);
       moves_.undoMove();
 
-      if (isRootCall && score < minScore) {
+      if (params.isRootCall && score < minScore)
         bestMove_ = move;
-      }
       minScore = std::min(score, minScore);
-      beta = std::min(beta, minScore);
-      if (beta <= alpha) {
+      nextParams.beta = std::min(params.beta, minScore);
+      if (nextParams.beta <= nextParams.alpha)
         return minScore;
-      }
     }
     return minScore;
   }
 }
 
-float Board::evaluate(const int depth) {
+float Board::evaluate(const int depth) const {
+  static constexpr float CHECKMATE_SCORE = 1000.0f;
 
-  const bool BLACK_CHECKED =
-      !isWhiteTurn_ && pieces.blackKing & moves_.otherThreats(true);
-  const bool BLACK_MATED = BLACK_CHECKED && !areBlackMoves();
-  if (BLACK_MATED)
-    return 1000 + depth; // add depth to prioritize faster mates
+  if (isCheckmate(Color::WHITE))
+    return CHECKMATE_SCORE + depth; // add depth to prioritize faster mates
 
-  const bool whiteChecked =
-      isWhiteTurn_ && pieces.whiteKing & moves_.otherThreats(false);
-  const bool whiteMated = whiteChecked && !areWhiteMoves();
-  if (whiteMated)
-    return -1000 - depth; // subtract depth to prioritize faster mates
+  if (isCheckmate(Color::BLACK))
+    return -CHECKMATE_SCORE - depth;
 
-  const bool stalemate = (isWhiteTurn_ && !areWhiteMoves()) ||
-                         (!isWhiteTurn_ && !areBlackMoves()) ||
-                         notEnoughPieces();
-  if (stalemate)
-    return 0;
+  if (isStalemate(Color::WHITE) || isStalemate(Color::BLACK))
+    return 0.0f;
 
   return materialScore() + positionScore();
 }
 
-bool Board::isGameOver() {
-  return (isWhiteTurn_ && !areWhiteMoves()) ||
-         (!isWhiteTurn_ && !areBlackMoves()) || notEnoughPieces();
+bool Board::isChecked(Color color) const {
+  const Bitboard king =
+      color == Color::WHITE ? pieces_.whiteKings : pieces_.blackKings;
+  return king & moves_.getThreatSquares(color);
 }
 
-bool Board::areWhiteMoves() {
-  const std::string MOVES = moves_.possibleMovesWhite();
-  for (int i = 0; i < MOVES.length(); i += 5) {
-    moves_.doMove(MOVES.substr(i, 5));
-    const bool WHITE_CHECKED = pieces_.whiteKings & moves_.otherThreats(false);
-    if (!WHITE_CHECKED) {
+bool Board::isCheckmate(Color color) const {
+  return isChecked(color) && !hasLegalMoves(color);
+}
+
+bool Board::isStalemate(Color color) const {
+  return (!isChecked(color) && !hasLegalMoves(color)) || onlyKingsLeft();
+}
+
+bool Board::isGameOver() const {
+  return isCheckmate(Color::WHITE) || isCheckmate(Color::BLACK) ||
+         isStalemate(Color::WHITE) || isStalemate(Color::BLACK) ||
+         onlyKingsLeft();
+}
+
+bool Board::hasLegalMoves(Color color) const {
+  const std::vector<Move> moves = moves_.getPossibleMoves(color);
+  for (const Move &move : moves) {
+    Board tempBoard = *this;
+    tempBoard.moves_.doMove(move);
+    if (!tempBoard.isChecked(color))
       return true;
-    }
-    moves_.undoMove();
   }
   return false;
 }
 
-bool Board::areBlackMoves() {
-  const std::string MOVES = moves_.possibleMovesBlack();
-  for (int i = 0; i < MOVES.length(); i += 5) {
-    moves_.doMove(MOVES.substr(i, 5));
-    const bool BLACK_CHECKED = pieces_.blackKings & moves_.otherThreats(true);
-    if (!BLACK_CHECKED) {
-      return true;
-    }
-    moves_.undoMove();
-  }
-  return false;
-}
-
-constexpr bool Board::notEnoughPieces() const {
+bool Board::onlyKingsLeft() const {
   return std::popcount(pieces_.whitePawns | pieces_.whiteKnights |
                        pieces_.whiteBishops | pieces_.whiteRooks |
                        pieces_.whiteQueens | pieces_.blackPawns |
@@ -320,58 +261,50 @@ constexpr bool Board::notEnoughPieces() const {
                        pieces_.blackRooks | pieces_.blackQueens) == 0;
 }
 
-constexpr int Board::materialScore() const {
-  return std::popcount(pieces_.whitePawns) +
-         3 * std::popcount(pieces_.whiteKnights | pieces_.whiteBishops) +
-         5 * std::popcount(pieces_.whiteRooks) +
-         9 * std::popcount(pieces_.whiteQueens) -
-         std::popcount(pieces_.blackPawns) -
-         3 * std::popcount(pieces_.blackKnights | pieces_.blackBishops) -
-         5 * std::popcount(pieces_.blackRooks) -
-         9 * std::popcount(pieces_.blackQueens);
+float Board::materialScore() const {
+  return 1.0f * std::popcount(pieces_.whitePawns) +
+         3.0f * std::popcount(pieces_.whiteKnights | pieces_.whiteBishops) +
+         5.0f * std::popcount(pieces_.whiteRooks) +
+         9.0f * std::popcount(pieces_.whiteQueens) -
+         1.0f * std::popcount(pieces_.blackPawns) -
+         3.0f * std::popcount(pieces_.blackKnights | pieces_.blackBishops) -
+         5.0f * std::popcount(pieces_.blackRooks) -
+         9.0f * std::popcount(pieces_.blackQueens);
 }
 
-constexpr float Board::positionScore() const {
-  float score = 0;
+float Board::positionScore() const {
+  auto processPieces = [&](Bitboard pieces, const Color color,
+                           const bool isKing) -> float {
+    const int multiplier = color == Color::WHITE ? 1 : -1;
+    float localScore = 0.0f;
 
-  // location value for white pieces (excluding king)
-  Bitboard pieces = pieces_.whitePawns | pieces_.whiteKnights |
-                    pieces_.whiteBishops | pieces_.whiteRooks |
-                    pieces_.whiteQueens;
-  Bitboard smallestPiece;
-  int pieceLocation;
-  while (pieces) {
-    smallestPiece = pieces & -pieces;
-    pieces ^= smallestPiece;
-    pieceLocation = std::countl_zero(smallestPiece);
-    score += pieceLocationValues[pieceLocation / 8][pieceLocation % 8];
-  }
+    while (pieces) {
+      int square = std::countr_zero(pieces);
+      pieces &= pieces - 1;
 
-  // location value for black pieces (excluding king)
-  pieces = pieces_.blackPawns | pieces_.blackKnights | pieces_.blackBishops |
-           pieces_.blackRooks | pieces_.blackQueens;
-  while (pieces) {
-    smallestPiece = pieces & -pieces;
-    pieces ^= smallestPiece;
-    pieceLocation = std::countl_zero(smallestPiece);
-    score -= pieceLocationValues[pieceLocation / 8][pieceLocation % 8];
-  }
+      int row = square / 8;
+      int col = square % 8;
 
-  // location value for white king
-  if (pieces_.whiteKings) {
-    pieceLocation = std::countl_zero(pieces_.whiteKings);
-    score += kingLocationValues[pieceLocation / 8][pieceLocation % 8];
-  }
+      localScore += (isKing ? kingLocationValues[row][col]
+                            : pieceLocationValues[row][col]) *
+                    multiplier;
+    }
+    return localScore;
+  };
 
-  // location value for black king
-  if (pieces_.blackKings) {
-    pieceLocation = std::countl_zero(pieces_.blackKings);
-    score -= kingLocationValues[7 - pieceLocation / 8][pieceLocation % 8];
-  }
+  const Bitboard whiteNonKingPieces =
+      pieces_.whitePawns | pieces_.whiteKnights | pieces_.whiteBishops |
+      pieces_.whiteRooks | pieces_.whiteQueens;
+  const Bitboard blackNonKingPieces =
+      pieces_.blackPawns | pieces_.blackKnights | pieces_.blackBishops |
+      pieces_.blackRooks | pieces_.blackQueens;
 
-  return score;
+  constexpr bool IS_KING = true;
+
+  return processPieces(whiteNonKingPieces, Color::WHITE, !IS_KING) +
+         processPieces(blackNonKingPieces, Color::BLACK, !IS_KING) +
+         processPieces(pieces_.whiteKings, Color::WHITE, IS_KING) +
+         processPieces(pieces_.blackKings, Color::BLACK, IS_KING);
 }
-
-};
 
 } // namespace chess_board
