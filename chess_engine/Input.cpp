@@ -39,7 +39,7 @@ chess_board::Move getPlayerMove(const chess_board::Color color,
                                 const chess_board::Pieces &pieces) {
   using namespace chess_board;
 
-  std::vector<Move> possibleMoves = moves.getPossibleMoves(color);
+  std::vector<Move> possibleMoves = moves.getPossibleMoves(color, pieces);
 
   while (true) {
     std::string moveInput;
@@ -51,7 +51,7 @@ chess_board::Move getPlayerMove(const chess_board::Color color,
     std::size_t x2 = static_cast<std::size_t>(moveInput[2] - '0');
     std::size_t y2 = static_cast<std::size_t>(moveInput[3] - '0');
 
-    Move move(Cords(y1, x1), Cords(y2, x2));
+    Move move(Cords(x1, y1), Cords(x2, y2));
 
     std::vector<Move> chosenMoves;
     for (const auto &possibleMove : possibleMoves) {

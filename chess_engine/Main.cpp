@@ -10,7 +10,7 @@ Date: 4/17/25
 #include <iostream>
 
 int main() {
-  chess_moves::Moves moves{};
+  chess_moves::Moves moves;
   chess_board::Board board(moves);
   board.startGame();
 

@@ -131,7 +131,6 @@
     <ClCompile Include="Board.cpp" />
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="Core.cpp" />
     <ClCompile Include="Moves.cpp" />
   </ItemGroup>
   <ItemGroup>

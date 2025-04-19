@@ -59,12 +59,12 @@ private:
   void initializeChess960();
   void handleTurn(const chess_board::GameParams &inputs);
   float minimax(const MinimaxParams &params);
-  float evaluate(const int depth) const;
+  float evaluate(const int depth);
   bool isChecked(Color color) const;
-  bool isCheckmate(Color color) const;
-  bool isStalemate(Color color) const;
-  bool isGameOver() const;
-  bool hasLegalMoves(Color color) const;
+  bool isCheckmate(Color color);
+  bool isStalemate(Color color);
+  bool isGameOver();
+  bool hasLegalMoves(Color color);
   bool onlyKingsLeft() const;
   float materialScore() const;
   float positionScore() const;

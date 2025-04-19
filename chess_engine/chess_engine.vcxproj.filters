@@ -22,9 +22,6 @@
     <ClCompile Include="Board.cpp">
       <Filter>Files\Board</Filter>
     </ClCompile>
-    <ClCompile Include="Core.cpp">
-      <Filter>Files\Board</Filter>
-    </ClCompile>
     <ClCompile Include="Moves.cpp">
       <Filter>Files\Moves</Filter>
     </ClCompile>
@@ -36,14 +33,14 @@
     <ClInclude Include="Board.hpp">
       <Filter>Files\Board</Filter>
     </ClInclude>
-    <ClInclude Include="Core.hpp">
-      <Filter>Files\Board</Filter>
-    </ClInclude>
     <ClInclude Include="Moves.hpp">
       <Filter>Files\Moves</Filter>
     </ClInclude>
     <ClInclude Include="Input.hpp">
       <Filter>Files\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="Core.hpp">
+      <Filter>Files\Board</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

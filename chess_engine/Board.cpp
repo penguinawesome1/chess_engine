@@ -7,12 +7,13 @@ Board::Board(const chess_moves::Moves &moves)
 
 void Board::handleTurn(const chess_board::GameParams &inputs) {
   const std::vector<Move> possibleMoves =
-      moves_.getPossibleMoves(inputs.playerColor);
+      moves_.getPossibleMoves(inputs.playerColor, pieces_);
   Move move;
 
   for (const auto &move : possibleMoves) {
     move.print();
   }
+  std::cout << "\n";
 
   if (inputs.opponentType == OpponentType::ENGINE) {
     const bool isPlayerTurn =
@@ -35,7 +36,7 @@ void Board::handleTurn(const chess_board::GameParams &inputs) {
     move = chess_input::getPlayerMove(inputs.playerColor, moves_, pieces_);
   }
 
-  moves_.doMove(move);
+  moves_.doMove(move, pieces_);
 
   printBoard();
 
@@ -44,6 +45,8 @@ void Board::handleTurn(const chess_board::GameParams &inputs) {
 }
 
 void Board::startGame() {
+  moves_.initRooks(pieces_);
+
   const chess_board::GameParams inputs = chess_input::gatherInputs();
   std::cout << "\n";
 
@@ -153,14 +156,15 @@ float Board::minimax(const MinimaxParams &params) {
     return evaluate(params.depth);
 
   if (isWhiteTurn_) {
-    const std::vector<Move> moves = moves_.getPossibleMoves(Color::WHITE);
+    const std::vector<Move> moves =
+        moves_.getPossibleMoves(Color::WHITE, pieces_);
     float maxScore = std::numeric_limits<float>::lowest();
 
     for (const Move &move : moves) {
-      moves_.doMove(move);
+      moves_.doMove(move, pieces_);
 
       if (isChecked(Color::WHITE)) {
-        moves_.undoMove();
+        moves_.undoMove(pieces_);
         continue;
       }
 
@@ -168,7 +172,7 @@ float Board::minimax(const MinimaxParams &params) {
       nextParams.depth--;
       nextParams.isRootCall = false;
       const float score = minimax(nextParams);
-      moves_.undoMove();
+      moves_.undoMove(pieces_);
 
       if (params.isRootCall && score > maxScore)
         bestMove_ = move;
@@ -179,14 +183,15 @@ float Board::minimax(const MinimaxParams &params) {
     }
     return maxScore;
   } else {
-    const std::vector<Move> moves = moves_.getPossibleMoves(Color::BLACK);
+    const std::vector<Move> moves =
+        moves_.getPossibleMoves(Color::BLACK, pieces_);
     float minScore = std::numeric_limits<float>::max();
 
     for (const Move &move : moves) {
-      moves_.doMove(move);
+      moves_.doMove(move, pieces_);
 
       if (isChecked(Color::BLACK)) {
-        moves_.undoMove();
+        moves_.undoMove(pieces_);
         continue;
       }
 
@@ -194,7 +199,7 @@ float Board::minimax(const MinimaxParams &params) {
       nextParams.depth--;
       nextParams.isRootCall = false;
       const float score = minimax(nextParams);
-      moves_.undoMove();
+      moves_.undoMove(pieces_);
 
       if (params.isRootCall && score < minScore)
         bestMove_ = move;
@@ -207,7 +212,7 @@ float Board::minimax(const MinimaxParams &params) {
   }
 }
 
-float Board::evaluate(const int depth) const {
+float Board::evaluate(const int depth) {
   static constexpr float CHECKMATE_SCORE = 1000.0f;
 
   if (isCheckmate(Color::WHITE))
@@ -225,30 +230,32 @@ float Board::evaluate(const int depth) const {
 bool Board::isChecked(Color color) const {
   const Bitboard king =
       color == Color::WHITE ? pieces_.whiteKings : pieces_.blackKings;
-  return king & moves_.getThreatSquares(color);
+  return king & moves_.getThreatSquares(color, pieces_);
 }
 
-bool Board::isCheckmate(Color color) const {
+bool Board::isCheckmate(Color color) {
   return isChecked(color) && !hasLegalMoves(color);
 }
 
-bool Board::isStalemate(Color color) const {
+bool Board::isStalemate(Color color) {
   return (!isChecked(color) && !hasLegalMoves(color)) || onlyKingsLeft();
 }
 
-bool Board::isGameOver() const {
+bool Board::isGameOver() {
   return isCheckmate(Color::WHITE) || isCheckmate(Color::BLACK) ||
          isStalemate(Color::WHITE) || isStalemate(Color::BLACK) ||
          onlyKingsLeft();
 }
 
-bool Board::hasLegalMoves(Color color) const {
-  const std::vector<Move> moves = moves_.getPossibleMoves(color);
+bool Board::hasLegalMoves(Color color) {
+  const std::vector<Move> moves = moves_.getPossibleMoves(color, pieces_);
   for (const Move &move : moves) {
-    Board tempBoard = *this;
-    tempBoard.moves_.doMove(move);
-    if (!tempBoard.isChecked(color))
+    moves_.doMove(move, pieces_);
+    if (isChecked(color)) {
+      moves_.undoMove(pieces_);
       return true;
+    }
+    moves_.undoMove(pieces_);
   }
   return false;
 }

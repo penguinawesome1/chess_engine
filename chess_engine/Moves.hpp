@@ -1,5 +1,11 @@
 #pragma once
 #include "Core.hpp"
+#include <array>
+#include <bit>
+#include <map>
+#include <optional>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 namespace chess_moves {
@@ -80,6 +86,10 @@ private:
     bool whiteLongCastle;
     bool blackShortCastle;
     bool blackLongCastle;
+
+    Castles()
+        : whiteShortCastle(true), whiteLongCastle(true), blackShortCastle(true),
+          blackLongCastle(true) {}
   };
 
   struct Rooks {
@@ -87,30 +97,121 @@ private:
     chess_board::Bitboard whiteRightRook;
     chess_board::Bitboard blackLeftRook;
     chess_board::Bitboard blackRightRook;
+
+    Rooks()
+        : whiteLeftRook(0ULL), whiteRightRook(0ULL), blackLeftRook(0ULL),
+          blackRightRook(0ULL) {}
   };
 
-  struct moveData {
-    char type1;
-    char type2;
-    char type3;
-    chess_board::Bitboard board1;
-    chess_board::Bitboard board2;
-    chess_board::Bitboard board3;
-    bool whiteShortCastle;
-    bool whiteLongCastle;
-    bool blackShortCastle;
-    bool blackLongCastle;
+  struct MoveBoards {
+    chess_board::Bitboard start;
+    chess_board::Bitboard end;
+
+    MoveBoards() : start(0ULL), end(0ULL) {}
+    MoveBoards(chess_board::Bitboard start_, chess_board::Bitboard end_)
+        : start(start_), end(end_) {}
   };
 
-  std::vector<moveData> moveHistory;
+  enum class PieceName {
+    WHITE_PAWNS,
+    WHITE_KNIGHTS,
+    WHITE_BISHOPS,
+    WHITE_ROOKS,
+    WHITE_QUEENS,
+    WHITE_KINGS,
+    BLACK_PAWNS,
+    BLACK_KNIGHTS,
+    BLACK_BISHOPS,
+    BLACK_ROOKS,
+    BLACK_QUEENS,
+    BLACK_KINGS,
+    NONE
+  };
+
+  struct MoveData {
+    PieceName movedName;
+    PieceName capturedName;
+    PieceName specialName;
+    chess_board::Bitboard movedBoard;
+    chess_board::Bitboard capturedBoard;
+    chess_board::Bitboard specialBoard;
+    Castles castles;
+
+    MoveData()
+        : movedName(PieceName::NONE), capturedName(PieceName::NONE),
+          specialName(PieceName::NONE), movedBoard(0ULL), capturedBoard(0ULL),
+          specialBoard(0ULL), castles({}) {}
+    MoveData(Castles castles_)
+        : movedName(PieceName::NONE), capturedName(PieceName::NONE),
+          specialName(PieceName::NONE), movedBoard(0ULL), capturedBoard(0ULL),
+          specialBoard(0ULL), castles(castles_) {}
+  };
+
+  Masks masks_{};
+  Castles castles_{};
+  Rooks rooks_{};
+  std::vector<MoveData> moveHistory_;
+
+  static auto getMoveBoards(const chess_board::Move &localMove);
+  static auto getBoardAndName(chess_board::Bitboard square,
+                              chess_board::Pieces &localPieces)
+      -> std::optional<
+          std::pair<std::reference_wrapper<chess_board::Bitboard>, PieceName>>;
+  static auto getBoardsAndNamePromotion(chess_board::Move::Type localType,
+                                        chess_board::Pieces &pieces)
+      -> std::optional<
+          std::tuple<std::reference_wrapper<chess_board::Bitboard>,
+                     std::reference_wrapper<chess_board::Bitboard>, PieceName>>;
+  auto getBoardAndNameCastle(chess_board::Move::Type localType,
+                             chess_board::Pieces &pieces)
+      -> std::optional<std::tuple<std::reference_wrapper<chess_board::Bitboard>,
+                                  chess_board::Bitboard, PieceName>>;
+  void handleCapture(chess_board::Bitboard endSquare, MoveData moveData,
+                     chess_board::Pieces &pieces);
+  void handleMovedPiece(MoveBoards moveBoards, MoveData moveData,
+                        chess_board::Pieces pieces);
+  void handlePromotion(chess_board::Move::Type localType,
+                       chess_board::Bitboard endSquare, MoveData moveData,
+                       chess_board::Pieces pieces);
+  void handleCastling(chess_board::Move::Type localType, MoveData moveData,
+                      chess_board::Pieces pieces);
+  void possibleP(std::vector<chess_board::Move> &allMoves,
+                 const chess_board::Color color,
+                 chess_board::Bitboard cantCapture, chess_board::Bitboard empty,
+                 chess_board::Bitboard enPassant,
+                 chess_board::Bitboard pawns) const;
+  void possibleN(std::vector<chess_board::Move> &allMoves,
+                 const chess_board::Color color,
+                 const chess_board::Bitboard cantCapture,
+                 chess_board::Bitboard knights) const;
+  void possibleSliderMoves(std::vector<chess_board::Move> &allMoves,
+                           const chess_board::Color color,
+                           const PieceName pieceType,
+                           const chess_board::Bitboard cantCapture,
+                           const chess_board::Bitboard empty,
+                           chess_board::Bitboard pieces) const;
+  static constexpr chess_board::Bitboard
+  hypQuint(const chess_board::Bitboard empty,
+           const chess_board::Bitboard square,
+           const chess_board::Bitboard mask);
+  static constexpr chess_board::Bitboard reverse(chess_board::Bitboard b);
+  void possibleK(std::vector<chess_board::Move> &allMoves,
+                 const chess_board::Color color,
+                 const chess_board::Bitboard cantCapture,
+                 const chess_board::Bitboard empty,
+                 const chess_board::Bitboard threats,
+                 const chess_board::Bitboard king) const;
 
 public:
   Moves() = default;
-  void doMove(chess_board::Move move);
-  void undoMove();
+  void initRooks(const chess_board::Pieces &pieces);
+  void doMove(const chess_board::Move &move, chess_board::Pieces &pieces);
+  void undoMove(chess_board::Pieces pieces);
   std::vector<chess_board::Move>
-  getPossibleMoves(chess_board::Color color) const;
-  chess_board::Bitboard getThreatSquares(chess_board::Color color) const;
+  getPossibleMoves(chess_board::Color color, chess_board::Pieces pieces) const;
+  chess_board::Bitboard
+  getThreatSquares(chess_board::Color color,
+                   const chess_board::Pieces &pieces) const;
 }; // namespace chess_moves
 
 } // namespace chess_moves
