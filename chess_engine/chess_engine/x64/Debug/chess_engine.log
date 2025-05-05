@@ -1,0 +1,7 @@
+﻿  board.cpp
+  input.cpp
+  main.cpp
+  move_executor.cpp
+  move_generator.cpp
+  Generating Code...
+  chess_engine.vcxproj -> C:\Users\owenh\OneDrive\Documents\chess_engine\x64\Debug\chess_engine.exe
