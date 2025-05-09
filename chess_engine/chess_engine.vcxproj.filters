@@ -8,39 +8,67 @@
     <Filter Include="Files\Board">
       <UniqueIdentifier>{76b600b2-504e-4b68-9fef-d19a178d8d09}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Files\Moves">
-      <UniqueIdentifier>{b0d2a29d-5599-462b-9319-61098578f035}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Files\Input">
       <UniqueIdentifier>{c539e48c-2abc-43fd-a391-0eb7c2a96594}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Files\MoveExecution">
+      <UniqueIdentifier>{336fbaaf-f33c-45df-8fbd-937a8e7e63d0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Files\MoveGenerator">
+      <UniqueIdentifier>{ed7e6080-486e-4676-bbe3-1154a8b1df35}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Main.cpp">
+    <ClCompile Include="main.cpp">
       <Filter>Files</Filter>
     </ClCompile>
-    <ClCompile Include="Board.cpp">
-      <Filter>Files\Board</Filter>
-    </ClCompile>
-    <ClCompile Include="Moves.cpp">
-      <Filter>Files\Moves</Filter>
-    </ClCompile>
-    <ClCompile Include="Input.cpp">
+    <ClCompile Include="input.cpp">
       <Filter>Files\Input</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Board.hpp">
+    <ClCompile Include="move_executor.cpp">
+      <Filter>Files\MoveExecution</Filter>
+    </ClCompile>
+    <ClCompile Include="move_generator.cpp">
+      <Filter>Files\MoveGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="generator_helpers.cpp">
+      <Filter>Files\MoveGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="core.ixx">
       <Filter>Files\Board</Filter>
-    </ClInclude>
-    <ClInclude Include="Moves.hpp">
-      <Filter>Files\Moves</Filter>
-    </ClInclude>
-    <ClInclude Include="Input.hpp">
+    </ClCompile>
+    <ClCompile Include="shifts.ixx">
+      <Filter>Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="masks.ixx">
+      <Filter>Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="cords.ixx">
+      <Filter>Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="move.ixx">
+      <Filter>Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="board_state.ixx">
+      <Filter>Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="board.ixx">
+      <Filter>Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="board.cpp">
+      <Filter>Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="input.ixx">
       <Filter>Files\Input</Filter>
-    </ClInclude>
-    <ClInclude Include="Core.hpp">
-      <Filter>Files\Board</Filter>
-    </ClInclude>
+    </ClCompile>
+    <ClCompile Include="move_executor.ixx">
+      <Filter>Files\MoveExecution</Filter>
+    </ClCompile>
+    <ClCompile Include="move_generator.ixx">
+      <Filter>Files\MoveGenerator</Filter>
+    </ClCompile>
+    <ClCompile Include="generator_helpers.ixx">
+      <Filter>Files\MoveGenerator</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

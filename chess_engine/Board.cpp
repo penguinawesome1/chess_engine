@@ -1,218 +1,202 @@
-#include "Board.hpp"
+module;
 
-namespace chess_board {
+#include <iomanip>
+#include <iostream>
+import chess.core;
+import chess.board_state;
+import chess.move;
+import chess.input;
+import chess.move_generator;
+import chess.move_executor;
+import <cstdint>;
+import <vector>;
+import <optional>;
 
-Board::Board(const chess_moves::Moves &moves)
-    : pieces_(), moves_(moves), bestMove_{}, moveC_(2), isWhiteTurn_(true) {}
+module chess.board;
 
-void Board::handleTurn(const chess_board::GameParams &inputs) {
+namespace chess::board {
+
+namespace {
+
+void initPieces(BoardState &boardState) {
+  static const char boardLayout[8][8] = {
+      {'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'},
+      {'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'},
+      {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '},
+      {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '},
+      {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '},
+      {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '},
+      {'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'},
+      {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'}};
+
+  auto getPieceNameFromChar = [](char pieceChar) -> std::optional<Name> {
+    switch (tolower(pieceChar)) {
+    case 'p':
+      return Name::PAWN;
+    case 'n':
+      return Name::KNIGHT;
+    case 'b':
+      return Name::BISHOP;
+    case 'r':
+      return Name::ROOK;
+    case 'q':
+      return Name::QUEEN;
+    case 'k':
+      return Name::KING;
+    default:
+      return std::nullopt; // Indicate an empty space or invalid char
+    }
+  };
+
+  for (std::uint8_t rank = 0; rank < 8; ++rank) {
+    for (std::uint8_t file = 0; file < 8; ++file) {
+      char pieceChar = boardLayout[rank][file];
+      if (auto pieceNameOpt = getPieceNameFromChar(pieceChar)) {
+        const Bitboard mask = 1ULL << (rank * 8 + file);
+        Color color = isupper(pieceChar) ? Color::WHITE : Color::BLACK;
+        boardState.addPiece(*pieceNameOpt, color, mask);
+      }
+    }
+  }
+}
+
+} // namespace
+
+std::vector<Move> Board::getAndPrintPossibleMoves() const {
   const std::vector<Move> possibleMoves =
-      moves_.getPossibleMoves(inputs.playerColor, pieces_);
-  Move move;
-
+      chess::move_generator::getPossibleMoves(boardState_);
   for (const auto &move : possibleMoves) {
-    move.print();
+    std::cout << move.getMoveString() << "\n";
   }
-  std::cout << "\n";
+  std::cout << std::endl;
+  return possibleMoves;
+}
 
-  if (inputs.opponentType == OpponentType::ENGINE) {
-    const bool isPlayerTurn =
-        (isWhiteTurn_ && inputs.playerColor == Color::WHITE) ||
-        (!isWhiteTurn_ && inputs.playerColor == Color::BLACK);
+Move Board::getEngineMove(const int depth) {
+  return minimax({.depth = depth,
+                  .alpha = -std::numeric_limits<float>::infinity(),
+                  .beta = std::numeric_limits<float>::infinity(),
+                  .isRootCall = true})
+      .bestMove;
+}
 
-    MinimaxParams initialParams{};
-    initialParams.depth = inputs.depth;
-    initialParams.alpha = -std::numeric_limits<float>::infinity();
-    initialParams.beta = std::numeric_limits<float>::infinity();
-    initialParams.isRootCall = true;
+void Board::handleTurn(const chess::input::GameParams &inputs) {
+  const bool isPlayerMove =
+      inputs.opponentType == chess::input::OpponentType::HUMAN ||
+      (inputs.opponentType == chess::input::OpponentType::ENGINE &&
+       (boardState_.getTurnColor() == inputs.playerColor));
 
-    if (!isPlayerTurn)
-      minimax(initialParams);
+  Move move = isPlayerMove
+                  ? chess::input::getPlayerMove(
+                        chess::move_generator::getPossibleMoves(boardState_))
+                  : getEngineMove(inputs.depth);
 
-    move = isPlayerTurn
-               ? chess_input::getPlayerMove(inputs.playerColor, moves_, pieces_)
-               : bestMove_;
-  } else { // OpponentType::HUMAN
-    move = chess_input::getPlayerMove(inputs.playerColor, moves_, pieces_);
-  }
-
-  moves_.doMove(move, pieces_);
-
-  printBoard();
-
-  isWhiteTurn_ = !isWhiteTurn_;
-  moveC_++;
+  chess::move_executor::doMove(boardState_, move);
+  printBoard(boardState_);
 }
 
 void Board::startGame() {
-  moves_.initRooks(pieces_);
+  const chess::input::GameParams inputs = chess::input::gatherInputs();
 
-  const chess_board::GameParams inputs = chess_input::gatherInputs();
-  std::cout << "\n";
+  initPieces(boardState_);
+  printBoard(boardState_);
 
-  if (inputs.gameType == GameType::CHESS960)
-    initializeChess960(); // if playing chess960 shuffle the files
-  arrayToBitboard();
-  printBoard();
-
-  while (!isGameOver()) {
+  while (!isGameOver(boardState_.getTurnColor())) {
     handleTurn(inputs);
   }
 
-  if (isCheckmate(Color::BLACK)) {
-    std::cout << "White wins!";
-  } else if (isCheckmate(Color::WHITE)) {
-    std::cout << "Black wins!";
-  } else {
-    std::cout << "It's a stalemate!";
-  }
+  std::cout << isCheckmate(Color::BLACK)
+      ? "White wins!"
+      : (isCheckmate(Color::WHITE) ? "Black wins!" : "It's a tie!");
 }
 
-void Board::initializeChess960() {
-  char pieces[8] = {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'};
+void Board::printBoard(BoardState &boardState) {
+  auto getPieceAtMask = [&](Bitboard mask) -> char {
+    if (boardState.getPieces(Color::WHITE, Name::PAWN) & mask)
+      return 'P';
+    if (boardState.getPieces(Color::WHITE, Name::KNIGHT) & mask)
+      return 'N';
+    if (boardState.getPieces(Color::WHITE, Name::BISHOP) & mask)
+      return 'B';
+    if (boardState.getPieces(Color::WHITE, Name::ROOK) & mask)
+      return 'R';
+    if (boardState.getPieces(Color::WHITE, Name::QUEEN) & mask)
+      return 'Q';
+    if (boardState.getPieces(Color::WHITE, Name::KING) & mask)
+      return 'K';
+    if (boardState.getPieces(Color::BLACK, Name::PAWN) & mask)
+      return 'p';
+    if (boardState.getPieces(Color::BLACK, Name::KNIGHT) & mask)
+      return 'n';
+    if (boardState.getPieces(Color::BLACK, Name::BISHOP) & mask)
+      return 'b';
+    if (boardState.getPieces(Color::BLACK, Name::ROOK) & mask)
+      return 'r';
+    if (boardState.getPieces(Color::BLACK, Name::QUEEN) & mask)
+      return 'q';
+    if (boardState.getPieces(Color::BLACK, Name::KING) & mask)
+      return 'k';
+    return '.';
+  };
 
-  std::default_random_engine rng(static_cast<unsigned int>(std::time(nullptr)));
-  std::shuffle(std::begin(pieces), std::end(pieces), rng);
+  for (std::uint8_t rank = 0; rank < 8; ++rank) {
+    std::cout << std::left << std::setw(3) << (8 - rank);
 
-  for (int i = 0; i < 8; ++i) {
-    chessBoard_[7][i] = pieces[i];
-    chessBoard_[0][i] = tolower(pieces[i]);
-  }
-}
+    for (std::uint8_t file = 0; file < 8; ++file) {
+      const chess::board::Bitboard mask = 1ULL << (rank * 8 + file);
+      std::cout << std::setw(2) << getPieceAtMask(mask);
 
-void Board::arrayToBitboard() {
-  static const std::map<char, Bitboard(Pieces::*)> pieceMap = {
-      {'P', &Pieces::whitePawns},   {'N', &Pieces::whiteKnights},
-      {'B', &Pieces::whiteBishops}, {'R', &Pieces::whiteRooks},
-      {'Q', &Pieces::whiteQueens},  {'K', &Pieces::whiteKings},
-      {'p', &Pieces::blackPawns},   {'n', &Pieces::blackKnights},
-      {'b', &Pieces::blackBishops}, {'r', &Pieces::blackRooks},
-      {'q', &Pieces::blackQueens},  {'k', &Pieces::blackKings}};
-
-  for (std::size_t rank = 0; rank < 8; ++rank) {
-    for (std::size_t file = 0; file < 8; ++file) {
-      char pieceChar = chessBoard_[rank][file];
-      auto it = pieceMap.find(pieceChar);
-      if (it != pieceMap.end()) {
-        std::size_t index = rank * 8 + file;
-        const Bitboard mask = 1ULL << index;
-        (pieces_.*(it->second)) |= mask;
-      }
-    }
-  }
-}
-
-void Board::printBoard() const {
-  std::string piece;
-
-  for (std::size_t rank = 0; rank < 8; ++rank) {
-    std::cout << std::left << std::setw(3) << (7 - rank);
-
-    for (std::size_t file = 0; file < 8; ++file) {
-      const std::size_t index = rank * 8 + file;
-      const Bitboard mask = 1ULL << index;
-
-      if (pieces_.whitePawns & mask) {
-        piece = 'P';
-      } else if (pieces_.whiteKnights & mask) {
-        piece = 'N';
-      } else if (pieces_.whiteBishops & mask) {
-        piece = 'B';
-      } else if (pieces_.whiteRooks & mask) {
-        piece = 'R';
-      } else if (pieces_.whiteQueens & mask) {
-        piece = 'Q';
-      } else if (pieces_.whiteKings & mask) {
-        piece = 'K';
-      } else if (pieces_.blackPawns & mask) {
-        piece = 'p';
-      } else if (pieces_.blackKnights & mask) {
-        piece = 'n';
-      } else if (pieces_.blackBishops & mask) {
-        piece = 'b';
-      } else if (pieces_.blackRooks & mask) {
-        piece = 'r';
-      } else if (pieces_.blackQueens & mask) {
-        piece = 'q';
-      } else if (pieces_.blackKings & mask) {
-        piece = 'k';
-      } else {
-        piece = '.';
-      }
-
-      std::cout << std::setw(2) << piece;
-
-      if (file == 7) {
+      if (file == 7)
         std::cout << '\n';
-      }
     }
   }
 
-  std::cout << "\n   0 1 2 3 4 5 6 7\n" << std::endl;
+  std::cout << "\n   a b c d e f g h\n" << std::endl;
 }
 
-float Board::minimax(const MinimaxParams &params) {
-  if (params.depth == 0 || isGameOver())
-    return evaluate(params.depth);
+auto Board::minimax(const MinimaxParams &params) -> MinimaxResult {
+  const auto &[depth, alpha, beta, isRootCall] = params;
 
-  if (isWhiteTurn_) {
-    const std::vector<Move> moves =
-        moves_.getPossibleMoves(Color::WHITE, pieces_);
-    float maxScore = std::numeric_limits<float>::lowest();
+  const Color turnColor = boardState_.getTurnColor();
 
-    for (const Move &move : moves) {
-      moves_.doMove(move, pieces_);
+  if (depth == 0 || isGameOver(turnColor))
+    return {evaluate(turnColor, depth), {}};
 
-      if (isChecked(Color::WHITE)) {
-        moves_.undoMove(pieces_);
-        continue;
-      }
+  Move bestMove{};
+  float bestScore = turnColor == Color::WHITE
+                        ? std::numeric_limits<float>::lowest()
+                        : std::numeric_limits<float>::max();
 
-      MinimaxParams nextParams = params;
-      nextParams.depth--;
-      nextParams.isRootCall = false;
-      const float score = minimax(nextParams);
-      moves_.undoMove(pieces_);
+  for (const Move &move :
+       chess::move_generator::getPossibleMoves(boardState_)) {
+    BoardState boardStateCopy = boardState_;
 
-      if (params.isRootCall && score > maxScore)
-        bestMove_ = move;
-      maxScore = std::max(score, maxScore);
-      nextParams.alpha = std::max(params.alpha, maxScore);
-      if (nextParams.beta <= nextParams.alpha)
-        return maxScore;
+    chess::move_executor::doMove(boardState_, move);
+    if (isChecked(turnColor)) {
+      boardState_ = boardStateCopy;
+      continue;
     }
-    return maxScore;
-  } else {
-    const std::vector<Move> moves =
-        moves_.getPossibleMoves(Color::BLACK, pieces_);
-    float minScore = std::numeric_limits<float>::max();
 
-    for (const Move &move : moves) {
-      moves_.doMove(move, pieces_);
+    float score = minimax({depth - 1, alpha, beta, false}).score;
 
-      if (isChecked(Color::BLACK)) {
-        moves_.undoMove(pieces_);
-        continue;
-      }
+    boardState_ = boardStateCopy;
 
-      MinimaxParams nextParams = params;
-      nextParams.depth--;
-      nextParams.isRootCall = false;
-      const float score = minimax(nextParams);
-      moves_.undoMove(pieces_);
-
-      if (params.isRootCall && score < minScore)
-        bestMove_ = move;
-      minScore = std::min(score, minScore);
-      nextParams.beta = std::min(params.beta, minScore);
-      if (nextParams.beta <= nextParams.alpha)
-        return minScore;
+    if (turnColor == Color::WHITE ? score > bestScore : score < bestScore) {
+      bestScore = score;
+      if (isRootCall)
+        bestMove = move;
     }
-    return minScore;
+
+    const bool branchToPrune =
+        (turnColor == Color::WHITE && bestScore >= beta) ||
+        (turnColor == Color::BLACK && bestScore <= alpha);
+    if (branchToPrune)
+      break;
   }
+  return {bestScore, bestMove};
 }
 
-float Board::evaluate(const int depth) {
+float Board::evaluate(const Color color, const uint8_t depth) {
   static constexpr float CHECKMATE_SCORE = 1000.0f;
 
   if (isCheckmate(Color::WHITE))
@@ -224,94 +208,40 @@ float Board::evaluate(const int depth) {
   if (isStalemate(Color::WHITE) || isStalemate(Color::BLACK))
     return 0.0f;
 
-  return materialScore() + positionScore();
+  return boardState_.materialScore() + boardState_.positionScore();
 }
 
-bool Board::isChecked(Color color) const {
-  const Bitboard king =
-      color == Color::WHITE ? pieces_.whiteKings : pieces_.blackKings;
-  return king & moves_.getThreatSquares(color, pieces_);
+bool Board::isChecked(const Color color) const {
+  const Bitboard king = color == Color::WHITE
+                            ? boardState_.getPieces(Color::WHITE, Name::KING)
+                            : boardState_.getPieces(Color::BLACK, Name::KING);
+  return king & chess::move_generator::getThreatSquares(color, boardState_);
 }
 
-bool Board::isCheckmate(Color color) {
+bool Board::isCheckmate(const Color color) {
   return isChecked(color) && !hasLegalMoves(color);
 }
 
-bool Board::isStalemate(Color color) {
-  return (!isChecked(color) && !hasLegalMoves(color)) || onlyKingsLeft();
+bool Board::isStalemate(const Color color) {
+  return (!isChecked(color) && !hasLegalMoves(color)) ||
+         boardState_.onlyKingsLeft();
 }
 
-bool Board::isGameOver() {
+bool Board::isGameOver(const Color color) {
   return isCheckmate(Color::WHITE) || isCheckmate(Color::BLACK) ||
          isStalemate(Color::WHITE) || isStalemate(Color::BLACK) ||
-         onlyKingsLeft();
+         boardState_.onlyKingsLeft();
 }
 
-bool Board::hasLegalMoves(Color color) {
-  const std::vector<Move> moves = moves_.getPossibleMoves(color, pieces_);
-  for (const Move &move : moves) {
-    moves_.doMove(move, pieces_);
-    if (isChecked(color)) {
-      moves_.undoMove(pieces_);
+bool Board::hasLegalMoves(const Color color) {
+  for (const Move &move :
+       chess::move_generator::getPossibleMoves(boardState_)) {
+    BoardState boardStateCopy = boardState_;
+    chess::move_executor::doMove(boardStateCopy, move);
+    if (!isChecked(color))
       return true;
-    }
-    moves_.undoMove(pieces_);
   }
   return false;
 }
 
-bool Board::onlyKingsLeft() const {
-  return std::popcount(pieces_.whitePawns | pieces_.whiteKnights |
-                       pieces_.whiteBishops | pieces_.whiteRooks |
-                       pieces_.whiteQueens | pieces_.blackPawns |
-                       pieces_.blackKnights | pieces_.blackBishops |
-                       pieces_.blackRooks | pieces_.blackQueens) == 0;
-}
-
-float Board::materialScore() const {
-  return 1.0f * std::popcount(pieces_.whitePawns) +
-         3.0f * std::popcount(pieces_.whiteKnights | pieces_.whiteBishops) +
-         5.0f * std::popcount(pieces_.whiteRooks) +
-         9.0f * std::popcount(pieces_.whiteQueens) -
-         1.0f * std::popcount(pieces_.blackPawns) -
-         3.0f * std::popcount(pieces_.blackKnights | pieces_.blackBishops) -
-         5.0f * std::popcount(pieces_.blackRooks) -
-         9.0f * std::popcount(pieces_.blackQueens);
-}
-
-float Board::positionScore() const {
-  auto processPieces = [&](Bitboard pieces, const Color color,
-                           const bool isKing) -> float {
-    const int multiplier = color == Color::WHITE ? 1 : -1;
-    float localScore = 0.0f;
-
-    while (pieces) {
-      int square = std::countr_zero(pieces);
-      pieces &= pieces - 1;
-
-      int row = square / 8;
-      int col = square % 8;
-
-      localScore += (isKing ? kingLocationValues[row][col]
-                            : pieceLocationValues[row][col]) *
-                    multiplier;
-    }
-    return localScore;
-  };
-
-  const Bitboard whiteNonKingPieces =
-      pieces_.whitePawns | pieces_.whiteKnights | pieces_.whiteBishops |
-      pieces_.whiteRooks | pieces_.whiteQueens;
-  const Bitboard blackNonKingPieces =
-      pieces_.blackPawns | pieces_.blackKnights | pieces_.blackBishops |
-      pieces_.blackRooks | pieces_.blackQueens;
-
-  constexpr bool IS_KING = true;
-
-  return processPieces(whiteNonKingPieces, Color::WHITE, !IS_KING) +
-         processPieces(blackNonKingPieces, Color::BLACK, !IS_KING) +
-         processPieces(pieces_.whiteKings, Color::WHITE, IS_KING) +
-         processPieces(pieces_.blackKings, Color::BLACK, IS_KING);
-}
-
-} // namespace chess_board
+} // namespace chess::board

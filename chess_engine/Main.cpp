@@ -1,17 +1,15 @@
-/*
-Purpose: Chess game with built in engine
+/**
+ * @file main.cpp
+ * @brief Entry point for the Chess game application with a built-in engine.
+ *
+ * @author Owen Colley
+ * @date May 4, 2025
+ */
 
-Author: Owen Colley
-Date: 4/17/25
-*/
-
-#include "Board.hpp"
-#include "Moves.hpp"
-#include <iostream>
+import chess.board;
 
 int main() {
-  chess_moves::Moves moves;
-  chess_board::Board board(moves);
+  chess::board::Board board;
   board.startGame();
 
   return 0;

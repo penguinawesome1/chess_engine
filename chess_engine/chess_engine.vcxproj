@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -104,7 +104,10 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <EnableModules>true</EnableModules>
+      <LanguageStandard_C>stdclatest</LanguageStandard_C>
+      <BuildStlModules>true</BuildStlModules>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -128,16 +131,47 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Board.cpp" />
-    <ClCompile Include="Input.cpp" />
-    <ClCompile Include="Main.cpp" />
-    <ClCompile Include="Moves.cpp" />
+    <ClCompile Include="board.cpp" />
+    <ClCompile Include="generator_helpers.cpp" />
+    <ClCompile Include="move_executor.cpp" />
+    <ClCompile Include="input.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="move_generator.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Board.hpp" />
-    <ClInclude Include="Core.hpp" />
-    <ClInclude Include="Input.hpp" />
-    <ClInclude Include="Moves.hpp" />
+    <ClCompile Include="board.ixx">
+      <FileType>Document</FileType>
+    </ClCompile>
+    <ClCompile Include="cords.ixx">
+      <FileType>Document</FileType>
+    </ClCompile>
+    <ClCompile Include="core.ixx">
+      <FileType>Document</FileType>
+    </ClCompile>
+    <ClCompile Include="generator_helpers.ixx">
+      <FileType>Document</FileType>
+    </ClCompile>
+    <ClCompile Include="input.ixx">
+      <FileType>Document</FileType>
+    </ClCompile>
+    <ClCompile Include="masks.ixx">
+      <FileType>Document</FileType>
+    </ClCompile>
+    <ClCompile Include="move.ixx">
+      <FileType>Document</FileType>
+    </ClCompile>
+    <ClCompile Include="move_executor.ixx">
+      <FileType>Document</FileType>
+    </ClCompile>
+    <ClCompile Include="move_generator.ixx">
+      <FileType>Document</FileType>
+    </ClCompile>
+    <ClCompile Include="board_state.ixx">
+      <FileType>Document</FileType>
+    </ClCompile>
+    <ClCompile Include="shifts.ixx">
+      <FileType>Document</FileType>
+    </ClCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
