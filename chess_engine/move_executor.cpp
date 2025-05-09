@@ -129,7 +129,7 @@ void handleEnPassant(chess::board::BoardState &boardState,
 void doMove(chess::board::BoardState &boardState,
             const chess::board::Move &move) {
   const chess::board::Bitboard startBoard = move.getStartBoard(),
-                               endBoard = move.getEndBoard();
+                              endBoard = move.getEndBoard();
   const chess::board::Move::Type moveType = move.getType();
 
   // 1. Identify the moving piece BEFORE modifying boards
